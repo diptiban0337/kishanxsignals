@@ -1,0 +1,12 @@
+{% extends "dashboard.html" %}
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">User Settings</h5>
+        <div class="user-info">
+            <p><strong>Username:</strong> {{ user.username if user else 'Guest' }}</p>
+            <p><strong>Member since:</strong> {{ user.registered_at if user else 'N/A' }}</p>
+        </div>
+    </div>
+</div>
+{% endblock %} 

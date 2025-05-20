@@ -1,0 +1,26 @@
+{% extends "dashboard.html" %}
+{% block content %}
+<div class="row">
+    {% if signals %}
+        {% for signal in signals %}
+        <div class="col-md-4 mb-3">
+            <div class="card signal-card {% if signal.direction == 'CALL' %}signal-call{% else %}signal-put{% endif %}">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        {% if signal.direction == 'CALL' %}🟢{% else %}🔴{% endif %}
+                        {{ signal.pair }} {{ signal.direction }}
+                    </h5>
+                    <p class="card-text">
+                        <strong>Time:</strong> {{ signal.created_at }}<br>
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <p class="text-center text-muted">No signals available</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %} 

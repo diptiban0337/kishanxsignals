@@ -1,0 +1,275 @@
+<div class="market-info">
+    <h3>Market Information</h3>
+    <div class="info-grid">
+        <div class="info-item">
+            <span class="label">Price:</span>
+            <span class="value" id="current-price">--</span>
+        </div>
+        <div class="info-item">
+            <span class="label">Change:</span>
+            <span class="value" id="price-change">--</span>
+        </div>
+        <div class="info-item">
+            <span class="label">High (24h):</span>
+            <span class="value" id="high-24h">--</span>
+        </div>
+        <div class="info-item">
+            <span class="label">Low (24h):</span>
+            <span class="value" id="low-24h">--</span>
+        </div>
+        <div class="info-item">
+            <span class="label">Spread:</span>
+            <span class="value" id="spread">--</span>
+        </div>
+        <div class="info-item">
+            <span class="label">Volatility:</span>
+            <span class="value" id="volatility">--</span>
+        </div>
+        <div class="info-item">
+            <span class="label">Data Source:</span>
+            <span class="value" id="data-source">--</span>
+        </div>
+    </div>
+</div>
+
+<div class="rate-box card-col">
+    <div class="rate-title" id="rateTitle">
+        Current Rate for <span id="pairName">{{ selected_pair }}</span>
+        <div class="data-source-info">
+            <span class="source-label">Fetched from:</span>
+            <span id="dataSourceInfo" class="source-value">{% if data_source %}{{ data_source }}{% else %}Unknown{% endif %}</span>
+        </div>
+    </div>
+</div>
+<div class="graph-card card-col">
+    <div class="graph-title">
+        Real-Time Price Chart
+        <div class="data-source-info">
+            <span class="source-label">Data Source:</span>
+            <span id="chartDataSource" class="source-value">{% if data_source %}{{ data_source }}{% else %}Unknown{% endif %}</span>
+        </div>
+    </div>
+    <canvas id="priceChart" height="60"></canvas>
+    <div id="noDataMsg" style="display:none;color:#d32f2f;text-align:center;margin-top:8px;font-size:1.05rem;">No real-time price data available.</div>
+</div>
+
+<style>
+.data-source-info {
+    font-size: 0.9em;
+    color: #666;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.source-label {
+    color: #888;
+    font-weight: 500;
+}
+
+.source-value {
+    color: #2a4d8f;
+    font-weight: 600;
+}
+
+.graph-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.graph-title .data-source-info {
+    margin-top: 0;
+}
+</style>
+
+<script>
+let priceData = [];
+let priceLabels = [];
+let priceChart = null;
+let isUpdating = false;
+let updateInterval = null;
+
+function showLoading() {
+    const elements = ['callValue', 'putValue', 'callMarketValue', 'putMarketValue'];
+    elements.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '<span class="loading">Updating...</span>';
+    });
+}
+
+function hideLoading() {
+    const elements = ['callValue', 'putValue', 'callMarketValue', 'putMarketValue'];
+    elements.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.innerHTML === '<span class="loading">Updating...</span>') {
+            el.textContent = 'N/A';
+        }
+    });
+}
+
+async function updatePrices() {
+    if (isUpdating) return;
+    isUpdating = true;
+    
+    const pair = document.getElementById('pairSelect').value;
+    showLoading();
+    
+    try {
+        const response = await fetch(`/api/price/${pair}`);
+        const data = await response.json();
+        
+        if (data.error) {
+            console.error('API Error:', data.error);
+            hideLoading();
+            if(document.getElementById('noDataMsg')) {
+                document.getElementById('noDataMsg').textContent = data.error;
+                document.getElementById('noDataMsg').style.display = 'block';
+            }
+            isUpdating = false;
+            return;
+        }
+        
+        if(document.getElementById('pairName')) document.getElementById('pairName').textContent = pair;
+        if(document.getElementById('callValue')) document.getElementById('callValue').textContent = data.call_price !== null ? data.call_price.toFixed(6) : 'N/A';
+        if(document.getElementById('putValue')) document.getElementById('putValue').textContent = data.put_price !== null ? data.put_price.toFixed(6) : 'N/A';
+        if(document.getElementById('callMarketValue')) document.getElementById('callMarketValue').textContent = data.rate !== null ? data.rate.toFixed(6) : 'N/A';
+        if(document.getElementById('putMarketValue')) document.getElementById('putMarketValue').textContent = data.rate !== null ? data.rate.toFixed(6) : 'N/A';
+        
+        // Update data source information
+        if (data.data_source) {
+            document.getElementById('dataSourceInfo').textContent = data.data_source;
+            document.getElementById('chartDataSource').textContent = data.data_source;
+            document.getElementById('data-source').textContent = data.data_source;
+        }
+        
+        // Update chart
+        const now = new Date();
+        const label = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+        const noDataMsg = document.getElementById('noDataMsg');
+        
+        if (typeof data.rate === 'number' && !isNaN(data.rate)) {
+            if (priceLabels.length > 30) {
+                priceLabels.shift();
+                priceData.shift();
+            }
+            priceLabels.push(label);
+            priceData.push(data.rate);
+            if (priceChart) {
+                priceChart.data.labels = priceLabels;
+                priceChart.data.datasets[0].data = priceData;
+                priceChart.update();
+            }
+            if (noDataMsg) noDataMsg.style.display = 'none';
+        } else {
+            if (noDataMsg) {
+                noDataMsg.textContent = 'No real-time price data available.';
+                noDataMsg.style.display = 'block';
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching price:', error);
+        hideLoading();
+        const noDataMsg = document.getElementById('noDataMsg');
+        if (noDataMsg) {
+            noDataMsg.textContent = 'Error fetching price data.';
+            noDataMsg.style.display = 'block';
+        }
+    } finally {
+        isUpdating = false;
+    }
+}
+
+function startAutoUpdate() {
+    // Clear any existing interval
+    if (updateInterval) {
+        clearInterval(updateInterval);
+    }
+    // Update immediately and then every 10 seconds
+    updatePrices();
+    updateInterval = setInterval(updatePrices, 10000);
+}
+
+function stopAutoUpdate() {
+    if (updateInterval) {
+        clearInterval(updateInterval);
+        updateInterval = null;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    startAutoUpdate();
+    
+    document.getElementById('pairSelect').addEventListener('change', function() {
+        priceLabels = [];
+        priceData = [];
+        updatePrices();
+    });
+    
+    // Chart.js setup
+    const canvas = document.getElementById('priceChart');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        priceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: priceLabels,
+                datasets: [{
+                    label: 'Real-Time Price',
+                    data: priceData,
+                    borderColor: '#2a4d8f',
+                    backgroundColor: 'rgba(42,77,143,0.08)',
+                    tension: 0.25,
+                    pointRadius: 2,
+                    borderWidth: 2,
+                    fill: true,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: true, title: { display: false } },
+                    y: { display: true, title: { display: false } }
+                },
+                animation: {
+                    duration: 0
+                }
+            }
+        });
+    }
+});
+
+// Handle visibility change to pause/resume updates
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        stopAutoUpdate();
+    } else {
+        startAutoUpdate();
+    }
+});
+
+socket.on('price_update', function(data) {
+    if (data.symbol === currentSymbol) {
+        updatePriceDisplay(data);
+        updateChart(data);
+    }
+});
+
+function updatePriceDisplay(data) {
+    document.getElementById('current-price').textContent = formatPrice(data.price);
+    document.getElementById('price-change').textContent = formatChange(data.change);
+    document.getElementById('high-24h').textContent = formatPrice(data.high_24h);
+    document.getElementById('low-24h').textContent = formatPrice(data.low_24h);
+    document.getElementById('spread').textContent = formatPrice(data.spread);
+    document.getElementById('volatility').textContent = formatPercentage(data.volatility);
+    
+    // Update data source information
+    const sourceInfo = data.source || 'Unknown';
+    document.getElementById('dataSourceInfo').textContent = sourceInfo;
+    document.getElementById('chartDataSource').textContent = sourceInfo;
+    document.getElementById('data-source').textContent = sourceInfo;
+}
+</script> 

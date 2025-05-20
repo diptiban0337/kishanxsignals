@@ -1,0 +1,53 @@
+{% extends "dashboard.html" %}
+{% block content %}
+<div class="row">
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2">Total Signals</h6>
+                <h2 class="card-title">{{ total if total is not none else 0 }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2">Active Markets</h6>
+                <h2 class="card-title">{{ signals|length if signals else 0 }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Recent Signals</h5>
+                <div class="row">
+                    {% if signals %}
+                        {% for signal in signals %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card signal-card {% if signal.direction == 'CALL' %}signal-call{% else %}signal-put{% endif %}">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        {% if signal.direction == 'CALL' %}🟢{% else %}🔴{% endif %}
+                                        {{ signal.pair }} {{ signal.direction }}
+                                    </h5>
+                                    <p class="card-text">
+                                        <strong>Time:</strong> {{ signal.created_at }}<br>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-12">
+                            <p class="text-center text-muted">No signals available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

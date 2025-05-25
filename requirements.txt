@@ -6,6 +6,8 @@ flask-socketio==5.3.6
 python-socketio==5.11.1
 python-engineio==4.9.0
 eventlet==0.35.2
+gunicorn
+
 
 # Data Processing and Analysis
 pandas==2.2.3
